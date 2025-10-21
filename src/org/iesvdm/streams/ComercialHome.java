@@ -2,13 +2,8 @@ package org.iesvdm.streams;
 // Generated 15 dic. 2022 23:59:33 by Hibernate Tools 5.6.9.Final
 
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.naming.InitialContext;
-import org.hibernate.LockMode;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
-import org.hibernate.criterion.Example;
 
 /**
  * Home object for domain model class Comercial.
