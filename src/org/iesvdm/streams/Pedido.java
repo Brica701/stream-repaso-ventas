@@ -76,4 +76,5 @@ public class Pedido implements java.io.Serializable {
 				+ ", fecha=" + fecha + "]";
 	}
 
+
 }

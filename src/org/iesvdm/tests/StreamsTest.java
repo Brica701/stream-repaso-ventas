@@ -6,16 +6,7 @@ import static java.util.Comparator.*;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.iesvdm.streams.Cliente;
@@ -791,8 +782,14 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Pedido> list = pedHome.findAll();
 						
 			//TODO STREAMS
-			
-			
+			list.stream()
+					.map(p -> p.getComercial())
+					.distinct()
+					.forEach(System.out::println);
+			;
+
+
+
 			pedHome.commitTransaction();
 		}
 		catch (RuntimeException e) {
@@ -814,6 +811,13 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Pedido> list = pedHome.findAll();
 						
 			//TODO STREAMS
+			list.stream()
+					.map(p -> new double[]{p.getTotal(), p.getTotal()}) // [max, min] iniciales
+					.reduce((a, b) -> new double[]{
+							Math.max(a[0], b[0]), // máximo entre ambos
+							Math.min(a[1], b[1])  // mínimo entre ambos
+					})
+					.ifPresent(arr -> System.out.println("Max: " + arr[0] + ", Min: " + arr[1]));
 			
 
 			
@@ -840,6 +844,10 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Cliente> list = cliHome.findAll();
 			
 			//TODO STREAMS
+			list.stream()
+					.map(c -> c.getCiudad())
+					.distinct()
+					.forEach(System.out::println);
 			
 			
 			cliHome.commitTransaction();
@@ -871,6 +879,22 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Pedido> list = pedHome.findAll();
 						
 			//TODO STREAMS
+			list.stream()
+					.collect(Collectors.groupingBy(
+							p -> new AbstractMap.SimpleEntry<>(p.getCliente(), p.getFecha()), // agrupar por cliente y fecha
+							Collectors.collectingAndThen(
+									Collectors.maxBy(Comparator.comparingDouble(Pedido::getTotal)), // máximo total
+									Optional::get // obtener el pedido con mayor total
+							)
+					))
+					.values() // obtenemos solo los pedidos máximos
+					.forEach(p -> System.out.println(
+							"Cliente ID: " + p.getCliente().getId() +
+									", Nombre: " + p.getCliente().getNombre() +
+									", Apellidos: " + p.getCliente().getApellido1() + " " + p.getCliente().getApellido2() +
+									", Fecha: " + p.getFecha() +
+									", Total: " + p.getTotal()
+					));
 			
 			pedHome.commitTransaction();
 		}
@@ -895,7 +919,27 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Pedido> list = pedHome.findAll();
 					
 			//TODO STREAMS
-			
+			list.stream()
+					.collect(Collectors.groupingBy(
+							p -> new AbstractMap.SimpleEntry<>(p.getCliente(), p.getFecha()), // Agrupar por cliente y fecha
+							Collectors.collectingAndThen(
+									Collectors.filtering( // Filtrar dentro de cada grupo
+											p -> p.getTotal() > 2000, // solo pedidos > 2000 €
+											Collectors.maxBy(Comparator.comparingDouble(Pedido::getTotal)) // máximo total
+									),
+									opt -> opt.orElse(null) // devolvemos el pedido si existe
+							)
+					))
+					.values() // obtener solo los pedidos máximos
+					.stream()
+					.filter(Objects::nonNull) // eliminar grupos sin pedidos > 2000 €
+					.forEach(p -> System.out.println(
+							"Cliente ID: " + p.getCliente().getId() +
+									", Nombre: " + p.getCliente().getNombre() +
+									", Apellidos: " + p.getCliente().getApellido1() + " " + p.getCliente().getApellido2() +
+									", Fecha: " + p.getFecha() +
+									", Total: " + p.getTotal()
+					));
 			
 			pedHome.commitTransaction();
 		}
@@ -925,6 +969,25 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			Date primerDia2018 = sdf.parse("2018-01-01");
 			
 			//TODO STREAMS
+			list.stream()
+					.map(c -> {
+						long numPedidos2017 = ((Set<?>) c.getPedidos()).stream()
+								.map(p -> (Pedido) p)
+								.filter(p -> p.getFecha().after(ultimoDia2016) && p.getFecha().before(primerDia2018))
+								.count();
+						return new AbstractMap.SimpleEntry<>(c, numPedidos2017);
+					})
+					.forEach(entry -> {
+						var c = entry.getKey();
+						var total = entry.getValue();
+						System.out.println(
+								"Cliente ID: " + c.getId() +
+										", Nombre: " + c.getNombre() +
+										", Apellidos: " + c.getApellido1() + " " + c.getApellido2() +
+										", Pedidos en 2017: " + total
+						);
+					});
+
 			
 			
 			cliHome.commitTransaction();
@@ -954,6 +1017,31 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			
 			
 			//TODO STREAMS
+			list.stream()
+					.collect(Collectors.groupingBy(
+							p -> { // obtener el año del pedido
+								calendar.setTime(p.getFecha());
+								return calendar.get(Calendar.YEAR);
+							},
+							Collectors.collectingAndThen(
+									Collectors.maxBy(Comparator.comparingDouble(Pedido::getTotal)), // máximo total
+									opt -> opt.orElse(null) // si no hay pedidos en ese año
+							)
+					))
+					.entrySet().stream() // convertir el Map a Stream para ordenar
+					.filter(entry -> entry.getValue() != null) // eliminar años sin pedidos
+					.sorted(Map.Entry.comparingByKey()) // ordenar por año
+					.forEach(entry -> {
+						Pedido p = entry.getValue();
+						int year = entry.getKey();
+						System.out.println(
+								"Año: " + year +
+										", Pedido ID: " + p.getId() +
+										", Cliente: " + p.getCliente().getNombre() + " " + p.getCliente().getApellido1() +
+										", Total: " + p.getTotal()
+						);
+					});
+
 					
 					
 			pedHome.commitTransaction();
@@ -980,6 +1068,22 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			Calendar calendar = Calendar.getInstance();
 			
 			//TODO STREAMS
+			list.stream()
+					.collect(Collectors.groupingBy(
+							p -> {
+								calendar.setTime(p.getFecha());
+								return calendar.get(Calendar.YEAR); // agrupar por año
+							},
+							Collectors.counting() // contar pedidos por año
+					))
+					.entrySet().stream()
+					.sorted(Map.Entry.comparingByKey()) // ordenar por año
+					.forEach(entry -> {
+						System.out.println(
+								"Año: " + entry.getKey() +
+										", Número de pedidos: " + entry.getValue()
+						);
+					});
 					
 							
 					
@@ -1012,6 +1116,18 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			Date primerDia2020 = sdf.parse("2020-01-01");
 			
 			//TODO STREAMS
+			list.stream()
+					.filter(p -> p.getFecha().after(ultimoDia2018) && p.getFecha().before(primerDia2020)) // solo 2019
+					.max(Comparator.comparingDouble(Pedido::getTotal)) // pedido más caro
+					.ifPresent(p -> { // si existe
+						System.out.println(
+								"Cliente ID: " + p.getCliente().getId() +
+										", Nombre: " + p.getCliente().getNombre() +
+										", Apellidos: " + p.getCliente().getApellido1() + " " + p.getCliente().getApellido2() +
+										", Pedido ID: " + p.getId() +
+										", Total: " + p.getTotal()
+						);
+					});
 			
 				
 			pedHome.commitTransaction();
@@ -1037,6 +1153,17 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Pedido> list = pedHome.findAll();
 			
 			//TODO STREAMS
+			DoubleSummaryStatistics stats = list.stream()
+					.collect(Collectors.summarizingDouble(Pedido::getTotal));
+
+			System.out.println(
+					"Total de pedidos: " + stats.getCount() +
+							", Total acumulado: " + stats.getSum() +
+							", Media: " + stats.getAverage() +
+							", Máximo: " + stats.getMax() +
+							", Mínimo: " + stats.getMin()
+			);
+
 				
 			pedHome.commitTransaction();
 		}
