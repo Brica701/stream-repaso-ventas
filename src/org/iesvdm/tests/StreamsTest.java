@@ -16,6 +16,7 @@ import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.iesvdm.streams.Cliente;
 import org.iesvdm.streams.ClienteHome;
@@ -305,6 +306,7 @@ class StreamsTest {
 			//TODO STREAMS
 
 
+
 			
 			comHome.commitTransaction();
 			
@@ -563,9 +565,19 @@ class StreamsTest {
 			List<Cliente> list = cliHome.findAll();
 			
 			//TODO STREAMS
-			
-			
-			cliHome.commitTransaction();
+            list.stream()
+                    .filter(c -> !c.getNombre().startsWith("A"))
+                    .sorted(Comparator.comparing(Cliente::getNombre)
+                            .thenComparing(Cliente::getApellido1)
+                            .thenComparing(Cliente::getApellido2))
+                    .forEach(c -> System.out.println(c.getNombre() + " " + c.getApellido1() + " " + c.getApellido2()));
+
+
+
+
+
+
+            cliHome.commitTransaction();
 			
 		}
 		catch (RuntimeException e) {
@@ -592,8 +604,22 @@ class StreamsTest {
 						
 			
 			//TODO STREAMS
-			
-			pedHome.commitTransaction();
+            list.stream()
+                    .map(Pedido::getCliente)
+                    .filter(c -> c != null)
+                    .distinct()
+                    .sorted(Comparator
+                            .comparing(Cliente::getApellido1, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Cliente::getApellido2, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Cliente::getNombre, Comparator.nullsFirst(String::compareTo)))
+                    .forEach(c -> System.out.println(
+                            "ID: " + c.getId() + ", Nombre: " + c.getNombre() + ", Apellidos: " + c.getApellido1() + " " + c.getApellido2()
+                    ));
+
+
+
+
+            pedHome.commitTransaction();
 		}
 		catch (RuntimeException e) {
 			pedHome.rollbackTransaction();
@@ -627,7 +653,16 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Cliente> list = cliHome.findAll();
 			
 			//TODO STREAMS
-			
+            list.stream()
+                    .sorted(Comparator.comparing(Cliente::getNombre, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Cliente::getApellido1, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Cliente::getApellido2, Comparator.nullsFirst(String::compareTo)))
+                    .forEach(cliente -> {
+                        System.out.println(cliente.toString());
+                        cliente.getPedidos().stream()
+                                .map(p -> (Pedido) p)
+                                .forEach(pedido -> System.out.println("\t" + pedido.toString()));
+                    });
 			
 			cliHome.commitTransaction();
 			
@@ -653,7 +688,21 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			comHome.beginTransaction();
 			
 			List<Comercial> list = comHome.findAll();		
-		
+
+            //TODO STREAMS
+            list.stream()
+                    .sorted(Comparator
+                            .comparing(Comercial::getApellido1, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Comercial::getApellido2, Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(Comercial::getNombre, Comparator.nullsFirst(String::compareTo)))
+                    .forEach(comercial -> {
+                        System.out.println(comercial.toString());
+                        comercial.getPedidos().stream()
+                                .map(p -> (Pedido)p)
+                                .forEach(pedido -> System.out.println("\t" + pedido.toString()));
+                    });
+
+
 			
 			comHome.commitTransaction();
 			
@@ -680,7 +729,16 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 						
 			
 			//TODO STREAMS
-			
+            list.stream()
+                    .filter(p -> p.getCliente() != null
+                            && "María".equals(p.getCliente().getNombre())
+                            && "Santana".equals(p.getCliente().getApellido1())
+                            && "Moreno".equals(p.getCliente().getApellido2()))
+                    .map(Pedido::getComercial)
+                    .filter(c -> c != null)
+                    .map(c -> c.getNombre() + " " + c.getApellido1() + (c.getApellido2() != null ? " " + c.getApellido2() : ""))
+                    .distinct()
+                    .forEach(System.out::println);
 			
 			pedHome.commitTransaction();
 		}
@@ -705,6 +763,9 @@ Cliente [id=2, nombre=Adela, apellido1=Salas, apellido2=D�az, ciudad=Granada, 
 			List<Comercial> list = comHome.findAll();		
 		
 			//TODO STREAMS
+            list.stream()
+                    .filter(c -> c.getPedidos().isEmpty())
+                    .forEach(System.out::println);
 			
 			
 			comHome.commitTransaction();
